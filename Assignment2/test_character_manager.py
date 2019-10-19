@@ -103,6 +103,7 @@ class TestCharacterManager(unittest.TestCase):
     def test_get(self):
         """ 040A - Get valid ID """
         self.server.add_character(self.monster)
+        self.assertEqual(self.server.get(1).get_id(), 1)
 
     def test_get_all(self):
         """ 050A - Get a valid list of all characters """
@@ -119,7 +120,6 @@ class TestCharacterManager(unittest.TestCase):
         self.server.add_character(self.player)
         player = Player(1, "knight")
         self.server.add_character(player)
-        # self.server.add_character(self.player)
 
         self.assertEqual(len(self.server.get_all_by_type("player")), 2)
         self.assertEqual(len(self.server.get_all_by_type("monster")), 1)
