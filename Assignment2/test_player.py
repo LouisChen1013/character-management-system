@@ -57,7 +57,7 @@ class TestPlayer(unittest.TestCase):
             ValueError, "Player Level cannot be empty", self.player.set_level, "")
 
     def test_get_level(self):
-        """ Test 020B - """
+        """ Test 020B - Get Valid Player Level """
 
         self.assertEqual(self.player.get_level(), 2)
 
@@ -68,7 +68,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(self.player.get_level(), 4)
 
     def test_set_job_valid(self):
-
+        """ Test 030A - Set Valid Player Job """
         self.player.set_job("knight".lower())
         self.assertEqual("knight", self.player.get_job())
 
@@ -79,7 +79,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual("warrior", self.player.get_job())
 
     def test_set_job_invalid(self):
-
+        """ Test 030B - Set Invalid Player Job """
         self.assertRaisesRegex(
             ValueError, "Player Job must be either assassin, knight, or warrior", self.player.set_job, "Thief".lower())
         self.assertRaisesRegex(
@@ -88,6 +88,7 @@ class TestPlayer(unittest.TestCase):
             ValueError, "Player Job cannot be empty", self.player.set_job, "")
 
     def test_get_job(self):
+        """ Test 040A - Get Valid Player Job """
         # init
         self.assertEqual(self.player.get_job(), "assassin")
         # change same
@@ -98,6 +99,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(self.player.get_job(), "warrior")
 
     def test_get_details(self):
+        """ Test 050A - Get Valid Player Details """
         self.assertEqual(
             "The player is level 2 assassin with 84 health and 33 damage, Position: X = 0 Y = 0", self.player.get_details())
         self.player.set_level(5)

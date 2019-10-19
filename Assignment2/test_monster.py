@@ -47,7 +47,6 @@ class TestMonster(unittest.TestCase):
 
     def test_set_monster_type_invalid(self):
         """ Test 020B - Set invalid monster types"""
-
         self.assertRaisesRegex(
             ValueError, "Monster type must be either dragon, orc, or elf", self.monster.set_monster_type, "Human".lower())
         self.assertRaisesRegex(

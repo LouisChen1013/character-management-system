@@ -9,7 +9,7 @@ class Player(AbstractCharacter):
     JOB_LABEL = "Player Job"
 
     def __init__(self, player_level, job):
-
+        """ Constructor - Initialize main attribute of Player"""
         super().__init__()
 
         AbstractCharacter._validate_string_input(
@@ -26,7 +26,7 @@ class Player(AbstractCharacter):
         self.set_job(self._job)
 
     def set_level(self, player_level):
-
+        """ Set Player Level """
         AbstractCharacter._validate_string_input(
             Player.PLAYER_LEVEL_LABEL, player_level)
         Player.validate_level(Player.PLAYER_LEVEL_LABEL, player_level)
@@ -44,10 +44,11 @@ class Player(AbstractCharacter):
             self._damage = 10 + ((self._player_level - 1) * 3)
 
     def get_level(self):
+        """ Returns Player Level """
         return self._player_level
 
     def set_job(self, job):
-
+        """ Set Player Job """
         AbstractCharacter._validate_string_input(Player.JOB_LABEL, job)
         if job.lower() not in Player.PLAYER_JOB:
             raise ValueError(
@@ -66,9 +67,11 @@ class Player(AbstractCharacter):
             self._damage = 10 + ((self._player_level - 1) * 3)
 
     def get_job(self):
+        """ Return Player Job """
         return self._job
 
     def get_details(self):
+        """ Return Player Details """
         """Returns the description of the player"""
         details = f"The player is level {self.get_level()} {self.get_job()} with {self._health} health and {self._damage} damage, Position: X = {self._position[0]} Y = {self._position[1]}"
         return details

@@ -13,7 +13,7 @@ class AbstractCharacter:
     HEALTH_LABEL = "Health"
 
     def __init__(self):
-
+        """ Constructor - Initialize main attribute of AbstractCharacter"""
         AbstractCharacter._validate_string_input(
             AbstractCharacter.ID_LABEL, id)
         self._id = None
@@ -23,6 +23,7 @@ class AbstractCharacter:
         self._alive = True
 
     def move_position(self, x, y):
+        """ Moves position of character from x/y input """
         AbstractCharacter._validate_string_input(AbstractCharacter.X_LABEL, x)
         AbstractCharacter._validate_position(AbstractCharacter.X_LABEL, x)
         AbstractCharacter._validate_string_input(AbstractCharacter.Y_LABEL, y)
@@ -31,9 +32,11 @@ class AbstractCharacter:
         self._position[1] = y
 
     def get_position(self):
+        """ Returns character position """
         return self._position
 
     def set_alive(self, alive):
+        """ Set characters existence status """
         AbstractCharacter._validate_string_input(
             AbstractCharacter.ALIVE_LABEL, alive)
         if alive is not isinstance(alive, bool):
@@ -41,9 +44,11 @@ class AbstractCharacter:
         self._alive = alive
 
     def get_alive(self):
+        """ Returns characters existence Status """
         return self._alive
 
     def set_stats(self, damage, health):
+        """ Sets characters status """
         AbstractCharacter._validate_string_input(
             AbstractCharacter.DAMAGE_LABEL, damage)
         if damage is not isinstance(damage, int):
@@ -56,31 +61,35 @@ class AbstractCharacter:
         self._health = health
 
     def get_stats(self):
+        """ Returns characters stats """
         stats = []
         stats.append(self._damage)
         stats.append(self._health)
         return stats
 
     def set_id(self, id):
+        """ Set characters ID """
         AbstractCharacter._validate_string_input(
             AbstractCharacter.ID_LABEL, id)
         self._id = id
 
     def get_id(self):
+        """ Returns character's ID """
         return self._id
 
     def get_type(self):
+        """ Returns character type """
         # Abstract parent method
         raise NotImplementedError("Must implement in child class")
 
     def get_details(self):
+        """ Returns character details """
         # Abstract parent method
         raise NotImplementedError("Must implement in child class")
 
     @staticmethod
     def _validate_string_input(display_name, str_value):
         """ Private helper to validate string values """
-
         if str_value is None:
             raise ValueError(display_name + " cannot be undefined.")
 

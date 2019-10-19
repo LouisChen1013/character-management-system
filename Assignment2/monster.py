@@ -9,7 +9,7 @@ class Monster(AbstractCharacter):
     MONSTER_AI_DIFFICULTY_LABEL = "Monster AI difficulty"
 
     def __init__(self, monster_type, monster_ai_difficulty):
-        """initializes a monster"""
+        """ Constructor - Initialize main attribute of Monster"""
 
         super().__init__()
 
@@ -71,7 +71,6 @@ class Monster(AbstractCharacter):
 
     def get_details(self):
         """Returns the description of the monster"""
-        # details = "The monster(id) is {difficulty} {type}  and with {health} and {damage}, Position:{}".format()
         details = f"The monster is {self.get_monster_ai_difficulty()} {self.get_monster_type()} with {self._health} health and {self._damage} damage, Position: X = {self._position[0]} Y = {self._position[1]}"
         return details
 
