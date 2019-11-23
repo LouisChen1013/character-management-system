@@ -1,16 +1,21 @@
 import unittest
 import inspect
 from player import Player
+from character_manager import CharacterManager
+from unittest.mock import patch, mock_open
 
 
 class TestPlayer(unittest.TestCase):
     """ Unit Test for Player Class """
 
+    @patch('builtins.open', mock_open(read_data='[]'))
     def setUp(self):
         """ Initialize fixtures """
 
         self.logPlayer()
         self.player = Player(2, "assassin")
+        self.server = CharacterManager(
+            "ACIT", "/Users/QB/Desktop/Pure_Python/Assignment2")
         self.assertIsNotNone(self.player)
 
     def test_constructor_valid(self):
@@ -57,7 +62,7 @@ class TestPlayer(unittest.TestCase):
             ValueError, "Player Level cannot be empty", self.player.set_level, "")
 
     def test_get_level(self):
-        """ Test 020B - Get Valid Player Level """
+        """ Test 030A - Get Valid Player Level """
 
         self.assertEqual(self.player.get_level(), 2)
 
@@ -68,7 +73,8 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(self.player.get_level(), 4)
 
     def test_set_job_valid(self):
-        """ Test 030A - Set Valid Player Job """
+        """ Test 040A - Set Valid Player Job """
+
         self.player.set_job("knight".lower())
         self.assertEqual("knight", self.player.get_job())
 
@@ -79,7 +85,8 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual("warrior", self.player.get_job())
 
     def test_set_job_invalid(self):
-        """ Test 030B - Set Invalid Player Job """
+        """ Test 040B - Set Invalid Player Job """
+
         self.assertRaisesRegex(
             ValueError, "Player Job must be either assassin, knight, or warrior", self.player.set_job, "Thief".lower())
         self.assertRaisesRegex(
@@ -88,7 +95,8 @@ class TestPlayer(unittest.TestCase):
             ValueError, "Player Job cannot be empty", self.player.set_job, "")
 
     def test_get_job(self):
-        """ Test 040A - Get Valid Player Job """
+        """ Test 050A - Get Valid Player Job """
+
         # init
         self.assertEqual(self.player.get_job(), "assassin")
         # change same
@@ -98,29 +106,53 @@ class TestPlayer(unittest.TestCase):
         self.player.set_job("warrior")
         self.assertEqual(self.player.get_job(), "warrior")
 
+    @patch('builtins.open', mock_open(read_data='[]'))
     def test_get_details(self):
-        """ Test 050A - Get Valid Player Details """
+        """ Test 060A - Get Valid Player Details """
+
+        self.server.add_character(self.player)
         self.assertEqual(
-            "The player is level 2 assassin with 84 health and 33 damage, Position: X = 0 Y = 0", self.player.get_details())
+            "The player (id: 1) is level 2 assassin with 84 health and 33 damage, Position: X = 0 Y = 0", self.player.get_details())
         self.player.set_level(5)
         self.assertEqual(
-            "The player is level 5 assassin with 96 health and 42 damage, Position: X = 0 Y = 0", self.player.get_details())
+            "The player (id: 1) is level 5 assassin with 96 health and 42 damage, Position: X = 0 Y = 0", self.player.get_details())
         self.player.set_job("warrior")
         self.assertEqual(
-            "The player is level 5 warrior with 136 health and 22 damage, Position: X = 0 Y = 0", self.player.get_details())
+            "The player (id: 1) is level 5 warrior with 136 health and 22 damage, Position: X = 0 Y = 0", self.player.get_details())
         self.player.set_level(2)
         self.player.set_job("knight")
         self.assertEqual(
-            "The player is level 2 knight with 104 health and 23 damage, Position: X = 0 Y = 0", self.player.get_details())
+            "The player (id: 1) is level 2 knight with 104 health and 23 damage, Position: X = 0 Y = 0", self.player.get_details())
 
-    def get_type(self):
+    def test_get_type(self):
+        """ Test 070A - Get valid type"""
+
         self.assertEqual("player", self.player.get_type())
+
+    @patch('builtins.open', mock_open(read_data='[]'))
+    def test_to_dict(self):
+        """ Test 080A - Valid to_dict """
+
+        self.server.add_character(self.player)
+        player_dict = self.player.to_dict()
+
+        self.assertEqual(player_dict['id'], 1)
+        self.assertEqual(player_dict['health'], 84)
+        self.assertEqual(player_dict['damage'], 33)
+        self.assertEqual(player_dict['position'], [0, 0])
+        self.assertEqual(player_dict['alive'], True)
+        self.assertEqual(player_dict['player_level'], 2)
+        self.assertEqual(player_dict['job'], "assassin")
+        self.assertEqual(player_dict['type'], "player")
 
     def tearDown(self):
         """" Tear down """
+
         self.logPlayer()
 
     def logPlayer(self):
+        """ Logs Player """
+
         currentTest = self.id().split('.')[-1]
         callingFunction = inspect.stack()[1][3]
         print('in %s - %s()' % (currentTest, callingFunction))
