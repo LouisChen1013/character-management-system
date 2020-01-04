@@ -1,8 +1,22 @@
 import re
+from sqlalchemy import Column, String, Integer, Float
+from base import Base
 
 
-class AbstractCharacter():
+class AbstractCharacter(Base):
     """ Represent an abstract character """
+
+    BOOLEAN_TRUE = 1
+
+    __tablename__ = "characters"
+
+    id = Column(Integer, primary_key=True)
+    health = Column(Integer)
+    damage = Column(Integer)
+    x = Column(Integer)
+    y = Column(Integer)
+    alive = Column(Integer)
+    type = Column(String(7))
 
     ID_LABEL = "ID"
     MIN_RANGE = 0
@@ -13,16 +27,18 @@ class AbstractCharacter():
     DAMAGE_LABEL = "Damage"
     HEALTH_LABEL = "Health"
 
-    def __init__(self):
+    def __init__(self, type):
         """ Constructor - Initialize main attribute of AbstractCharacter"""
-
+        
         AbstractCharacter._validate_string_input(
-            AbstractCharacter.ID_LABEL, id)
-        self._id = None
-        self._health = 100
-        self._damage = 10
-        self._position = [0, 0]
-        self._alive = True
+            AbstractCharacter.ID_LABEL, type)
+        self.id = None
+        self.health = 100
+        self.damage = 10
+        self.x = 0
+        self.y = 0
+        self.alive = True
+        self.type = type
 
     def move_position(self, x, y):
         """ Moves position of character from x/y input """
@@ -31,13 +47,13 @@ class AbstractCharacter():
         AbstractCharacter._validate_position(AbstractCharacter.X_LABEL, x)
         AbstractCharacter._validate_string_input(AbstractCharacter.Y_LABEL, y)
         AbstractCharacter._validate_position(AbstractCharacter.Y_LABEL, y)
-        self._position[0] = x
-        self._position[1] = y
+        self.x = x
+        self.y = y
 
     def get_position(self):
         """ Returns character position """
-
-        return self._position
+        position = [self.x, self.y]
+        return position
 
     def set_alive(self, alive):
         """ Set characters existence status """
@@ -46,12 +62,12 @@ class AbstractCharacter():
             AbstractCharacter.ALIVE_LABEL, alive)
         if alive is not isinstance(alive, bool):
             raise ValueError("Alive must be a Boolean (True/False)")
-        self._alive = alive
+        self.alive = alive
 
     def get_alive(self):
         """ Returns characters existence Status """
 
-        return self._alive
+        return self.alive
 
     def set_stats(self, damage, health):
         """ Sets characters status """
@@ -64,28 +80,16 @@ class AbstractCharacter():
             AbstractCharacter.HEALTH_LABEL, health)
         if health is not isinstance(health, int):
             raise ValueError("Health must an int")
-        self._damage = damage
-        self._health = health
+        self.damage = damage
+        self.health = health
 
     def get_stats(self):
         """ Returns characters stats """
 
         stats = []
-        stats.append(self._damage)
-        stats.append(self._health)
+        stats.append(self.damage)
+        stats.append(self.health)
         return stats
-
-    def set_id(self, id):
-        """ Set characters ID """
-
-        AbstractCharacter._validate_string_input(
-            AbstractCharacter.ID_LABEL, id)
-        self._id = id
-
-    def get_id(self):
-        """ Returns character's ID """
-
-        return self._id
 
     def get_type(self):
         """ Returns character type """
@@ -96,6 +100,11 @@ class AbstractCharacter():
     def get_details(self):
         """ Returns character details """
 
+        # Abstract parent method
+        raise NotImplementedError("Must implement in child class")
+
+    def get_full_details(self):
+        """ Returns full character details """
         # Abstract parent method
         raise NotImplementedError("Must implement in child class")
 

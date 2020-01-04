@@ -4,7 +4,7 @@ conn = sqlite3.connect('characters.sqlite')
 
 c = conn.cursor()
 c.execute('''
-          DROP TABLE devices
+          DROP TABLE characters
           ''')
 
 conn.commit()

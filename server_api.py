@@ -6,12 +6,12 @@ from player import Player
 
 app = Flask(__name__)
 
-server = CharacterManager("ACIT", "/Users/QB/Desktop/Pure_Python/Assignment2")
+server = CharacterManager("ACIT", "characters.sqlite")
 
 
 # API Methods
 
-@app.route('/server/character', methods=['POST'])
+@app.route('/server/characters', methods=['POST'])
 def add_character():
     """ Adds a character to the Server """
     content = request.json
@@ -24,12 +24,7 @@ def add_character():
                                 content['monster_ai_difficulty'])
             server.add_character(character)
 
-        response = app.response_class(
-            status=200,
-            response=json.dumps(
-                server.get_assigned_id()
-            ), mimetype='application/json'
-        )
+        response = app.response_class(status=200)
     except ValueError as e:
         response = app.response_class(
             response=str(e),
@@ -47,6 +42,24 @@ def get_character(id):
             status=200,
             response=json.dumps(
                 character.to_dict()
+            ),
+            mimetype='application/json'
+        )
+        return response
+    except ValueError as e:
+        response = app.response_class(response=str(e), status=404)
+        return response
+
+
+@app.route('/server/characters/details/<int:id>', methods=['GET'])
+def get_character_details(id):
+    """ Gets character details from the Server """
+    try:
+        character = server.get_character_details(id)
+        response = app.response_class(
+            status=200,
+            response=json.dumps(
+                character
             ),
             mimetype='application/json'
         )
@@ -93,6 +106,30 @@ def get_all_by_type(character_type):
 def get_all():
     """ Gets all existing characters from the Server """
     try:
+        characters = server.get_all()
+
+        character_list = []
+
+        for character in characters:
+            character = character.to_dict()
+            character_list.append(character)
+        response = app.response_class(
+            status=200,
+            response=json.dumps(
+                character_list
+            ),
+            mimetype='application/json'
+        )
+        return response
+    except ValueError as e:
+        response = app.response_class(response=str(e), status=404)
+        return response
+
+
+@app.route('/server/characters/all_details', methods=['GET'])
+def get_all_details():
+    """ Gets all existing characters from the Server """
+    try:
         response = app.response_class(
             status=200,
             response=json.dumps(
@@ -112,32 +149,12 @@ def update_character(id):
     content = request.json
     try:
         if server.get(id).get_type() == "player":
-            if content.keys() >= {"job", "player_level"}:
-                character = server.get(id).set_job(content["job"])
-                character = server.get(id).set_level(content["player_level"])
-                response = app.response_class(status=200)
-            elif "player_level" in content:
-                character = server.get(id).set_level(content["player_level"])
-                response = app.response_class(status=200)
-            else:
-                character = server.get(id).set_job(content["job"])
-                response = app.response_class(status=200)
+            character = server.update_character(id,
+                                                content["job"], content["player_level"])
         else:
-            if content.keys() >= {"monster_ai_difficulty", "monster_type"}:
-                character = server.get(id).set_monster_ai_difficulty(
-                    content["monster_ai_difficulty"])
-                character = server.get(id).set_monster_type(
-                    content["monster_type"])
-                response = app.response_class(status=200)
-            elif "monster_ai_difficulty" in content:
-                character = server.get(
-                    id).set_monster_ai_difficulty(content["monster_ai_difficulty"])
-                response = app.response_class(status=200)
-            else:
-                character = server.get(id).set_monster_type(
-                    content["monster_type"])
-                response = app.response_class(status=200)
-
+            character = server.update_character(
+                id, content["monster_type"], content["monster_ai_difficulty"])
+        response = app.response_class(status=200)
     except ValueError as e:
         response = app.response_class(
             response=str(e),

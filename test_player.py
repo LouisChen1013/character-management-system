@@ -55,7 +55,7 @@ class TestPlayer(unittest.TestCase):
         """ Test 020B - Set invalid level"""
 
         self.assertRaisesRegex(
-            ValueError, "Player Level is out of range, please enter 0-10", self.player.set_level, 20)
+            ValueError, "Player Level is out of range, please enter 1-10", self.player.set_level, 20)
         self.assertRaisesRegex(
             ValueError, "Player Level cannot be undefined", self.player.set_level, None)
         self.assertRaisesRegex(

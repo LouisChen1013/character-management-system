@@ -6,15 +6,21 @@ from server_stats import ServerStats
 import os.path
 import json
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 
 class CharacterManager:
     """ This is the Character Manager class """
 
     CHARACTER_LABEL = "Server Name"
     ID_LABEL = "ID"
-    FILEPATH_LABEL = "Filepath"
+    DB_NAME_LABEL = "Database Name"
+    JOB_TYPE_LABEL = "Job/Type"
+    LEVEL_LABEL = "Level"
+    DIFFICULTY_LABEL = "Difficulty"
 
-    def __init__(self, server_name, filepath):
+    def __init__(self, server_name, db_filename):
         """ Constructor - Initialize main attribute of CharacterManager """
 
         CharacterManager._validate_string_input(
@@ -23,15 +29,15 @@ class CharacterManager:
             raise ValueError("Server Name must be string")
 
         CharacterManager._validate_string_input(
-            CharacterManager.FILEPATH_LABEL, filepath)
-        if filepath is None or not isinstance(filepath, str):
-            raise ValueError("Filepath must be string")
+            CharacterManager.DB_NAME_LABEL, db_filename)
+        if db_filename is None or not isinstance(db_filename, str):
+            raise ValueError("Database Name must be string")
 
+        engine = create_engine('sqlite:///' + db_filename)
+        self._db_session = sessionmaker(bind=engine)
+
+        self._db_filename = db_filename
         self._server_name = server_name
-        self._next_available_id = int(0)
-        self._character_list = []
-        self._filepath = filepath
-        self._read_entities_from_file()
 
     def add_character(self, character_obj):
         """ Adds character object to character list if it is not on the list """
@@ -43,17 +49,10 @@ class CharacterManager:
         if not isinstance(character_obj, AbstractCharacter):
             raise ValueError("Invalid Character Object")
 
-        if character_obj not in self._character_list:
-            self._next_available_id = self._next_available_id + 1
-            character_obj.set_id(self._next_available_id)
-            self._character_list.append(character_obj)
-        self._write_entities_to_file()
-        return self._next_available_id
-
-    def get_assigned_id(self):
-        """ Get assigned id """
-
-        return self._next_available_id
+        session = self._db_session()
+        session.add(character_obj)
+        session.commit()
+        session.close()
 
     def character_exists(self, id):
         """ Checks if character already exists in character list """
@@ -61,9 +60,14 @@ class CharacterManager:
         CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
         CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
 
-        for character in self._character_list:
-            if character.get_id() == id:
-                return True
+        session = self._db_session()
+        character = session.query(AbstractCharacter).filter(
+            AbstractCharacter.id == id).first()
+        session.close()
+
+        if character is not None:
+            return True
+
         return False
 
     def get(self, id):
@@ -71,50 +75,85 @@ class CharacterManager:
 
         CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
         CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
+        session = self._db_session()
 
-        for character in self._character_list:
-            if character.get_id() == id:
-                return character
-        raise ValueError("Character does not exist")
+        if self.character_exists(id):
+            character = session.query(Player).filter(
+                Player.type == "player", Player.id == id).first()
+            if character is None:
+                character = session.query(Monster).filter(
+                    Monster.type == "monster", Monster.id == id).first()
+        else:
+            raise ValueError("Character ID does not exist")
+
+        session.close()
+        return character
 
     def get_all(self):
         """ Returns a list of all characters """
-
-        return self._character_list
+        session = self._db_session()
+        characters = characters = session.query(Player).filter(
+            Player.type == "player").all() + session.query(Monster).filter(
+            Monster.type == "monster").all()
+        session.close()
+        return characters
 
     def get_all_by_type(self, character_type):
         """ Returns character list by type """
 
         if character_type is None or character_type not in ["player", "monster"]:
             raise ValueError(
-                "Character_type type must be either player or monster")
-        character_type_list = []
-        for character in self._character_list:
-            if character.get_type() == character_type:
-                character_type_list.append(character)
-        return character_type_list
+                "Character type must be either player or monster")
 
-    def update_character(self, character_obj):
-        """ Update character  Update – Takes in an entity object and replaces the existing entity in the list of entities based on the ID. """
+        session = self._db_session()
+
+        if character_type == Player.CHARACTER_TYPE:
+            characters = session.query(Player).filter(
+                Player.type == "player").all()
+        elif character_type == Monster.CHARACTER_TYPE:
+            characters = session.query(Monster).filter(
+                Monster.type == "monster").all()
+        else:
+            characters = []
+
+        session.close()
+        return characters
+
+    def update_character(self, id, job_type, level_difficulty):
+        """ Update character – Takes in an entity object and replaces the existing entity in the list of entities based on the ID. """
 
         # Raises an exception if an entity with the same ID does not exist in the list of entities.
+        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
+        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
 
-        if character_obj is None:
-            raise ValueError("Character Object cannot be undefined")
-        if character_obj is "":
-            raise ValueError("Character Object cannot be empty")
-        if not isinstance(character_obj, AbstractCharacter):
-            raise ValueError("Invalid Character Object")
+        CharacterManager._validate_string_input(
+            CharacterManager.JOB_TYPE_LABEL, job_type)
 
-        character_id = character_obj.get_id()
+        session = self._db_session()
 
-        if self.character_exists(character_id) is False:
-            raise Exception("Character ID does not exist")
-        for i, character in enumerate(self._character_list, 0):
-            if character.get_id() == character_id:
-                self._character_list[i] = character_obj
-                self._write_entities_to_file()
-                break
+        if self.character_exists(id):
+            character = session.query(AbstractCharacter).filter(
+                AbstractCharacter.id == id).first()
+            if character.type == "player":
+                CharacterManager._validate_int_id(
+                    CharacterManager.LEVEL_LABEL, level_difficulty)
+                character = session.query(Player).filter(
+                    Player.type == "player", Player.id == id).first()
+                character.set_job(job_type)
+                character.set_level(level_difficulty)
+            else:
+                CharacterManager._validate_string_input(
+                    CharacterManager.DIFFICULTY_LABEL, level_difficulty)
+                character = session.query(Monster).filter(
+                    Monster.type == "monster", Monster.id == id).first()
+                character.set_monster_type(job_type)
+                character.set_monster_ai_difficulty(level_difficulty)
+        else:
+            raise ValueError("Character ID does not exist")
+
+        session.commit()
+
+        session.close()
 
     def delete_character(self, id):
         """ Delete existing character from character list """
@@ -123,12 +162,18 @@ class CharacterManager:
             CharacterManager.ID_LABEL, id)
         CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
 
-        for character in self._character_list:
-            if character.get_id() == id:
-                self._character_list.remove(character)
-                self._write_entities_to_file()
-                return
-        raise ValueError("Character does not exist.")
+        session = self._db_session()
+
+        character = session.query(AbstractCharacter).filter(
+            AbstractCharacter.id == id).first()
+
+        if character is None:
+            session.close()
+            raise ValueError("Character does not exist")
+
+        session.delete(character)
+        session.commit()
+        session.close()
 
     def get_server_name(self):
         """ Returns server name """
@@ -138,7 +183,12 @@ class CharacterManager:
     def get_server_stats(self):
         """ Returns a ServerStats object """
 
-        total_num_characters = len(self._character_list)
+        session = self._db_session()
+        characters = self.get_all_by_type(
+            "player") + self.get_all_by_type("monster")
+        session.close()
+
+        total_num_characters = len(characters)
         avg_player_level = 0
         total_player_level = 0
         avg_monster_ai_difficulty = 0
@@ -146,8 +196,8 @@ class CharacterManager:
         num_players = len(self.get_all_by_type("player"))
         num_monsters = len(self.get_all_by_type("monster"))
 
-        for curr_character in self._character_list:
-            if curr_character.get_type() == "player":
+        for curr_character in characters:
+            if curr_character.type == Player.CHARACTER_TYPE:
                 total_player_level += curr_character.get_level()
             else:
                 if curr_character.get_monster_ai_difficulty() == "easy":
@@ -177,65 +227,55 @@ class CharacterManager:
 
         return ServerStats(total_num_characters, num_monsters, num_players, avg_player_level, avg_monster_ai_difficulty)
 
+    def get_character_details(self, id):
+        """ Returns character details """
+
+        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
+        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
+
+        details = self.get(id).get_full_details()
+
+        return details
+
     def get_character_details_by_type(self, character_type):
         """ Returns a list of details for the given character type """
 
         if character_type is None or (character_type != Player.CHARACTER_TYPE and character_type != Monster.CHARACTER_TYPE):
             raise ValueError("Invalid character type")
 
+        session = self._db_session()
+
+        if character_type == Player.CHARACTER_TYPE:
+            characters = session.query(Player).filter(
+                Player.type == "player").all()
+        elif character_type == Monster.CHARACTER_TYPE:
+            characters = session.query(Monster).filter(
+                Monster.type == "monster").all()
+        else:
+            characters = []
+
+        session.close()
+
         character_detail_list = []
 
-        for curr_character in self._character_list:
-            if curr_character.get_type() == character_type:
-                character_detail_list.append(curr_character.get_details())
+        for curr_character in characters:
+            character_detail_list.append(curr_character.get_details())
 
         return character_detail_list
 
     def get_all_character_details(self):
         """ Returns a list of details for the all character """
 
+        session = self._db_session()
+        characters = self.get_all()
+        session.close()
+
         character_detail_list = []
 
-        for curr_character in self._character_list:
+        for curr_character in characters:
             character_detail_list.append(curr_character.get_details())
 
         return character_detail_list
-
-    def _read_entities_from_file(self):
-        """ Read entities from text file"""
-
-        if os.path.isfile(os.path.basename(self._filepath) + '.txt'):
-            with open(os.path.basename(self._filepath) + '.txt', "r") as file:
-                if os.stat(os.path.basename(self._filepath) + '.txt').st_size == 0:
-                    return
-                else:
-                    character_dict = json.load(file)
-                    for char in character_dict:
-                        if char["type"] == "player":
-                            character = Player(
-                                char['player_level'], char['job'])
-                        elif char["type"] == "monster":
-                            character = Monster(
-                                char['monster_type'], char['monster_ai_difficulty'])
-
-                        else:
-                            raise ValueError("Character type is not supported")
-                        character.set_id(char['id'])
-                        self.add_character(character)
-        else:
-            raise ValueError(
-                "This file does not exist, create one before running")
-
-    def _write_entities_to_file(self):
-        """ Write entities to text file """
-
-        with open(os.path.basename(self._filepath) + '.txt', 'r+') as file:
-            data_list = []
-
-            for character in self._character_list:
-                data_list.append(character.to_dict())
-
-            json.dump(data_list, file)
 
     @staticmethod
     def _validate_string_input(display_name, str_value):
