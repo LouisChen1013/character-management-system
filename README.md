@@ -6,7 +6,7 @@ The purpose of this project is to simulate a game server management system. We b
 
 ## Project First Look
 
-![character_management gif](expense-tracker.gif)
+![character_management gif](character.gif)
 
 ## Key Features
 
