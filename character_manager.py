@@ -44,7 +44,7 @@ class CharacterManager:
 
         if character_obj is None:
             raise ValueError("Character Object cannot be undefined")
-        if character_obj is "":
+        if character_obj == "":
             raise ValueError("Character Object cannot be empty")
         if not isinstance(character_obj, AbstractCharacter):
             raise ValueError("Invalid Character Object")

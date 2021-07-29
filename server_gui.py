@@ -1,10 +1,10 @@
 import tkinter as tk
 import requests
 from tkinter import messagebox
-from add_monster_popup import AddMonsterPopup
-from add_player_popup import AddPlayerPopup
-from player_update_popup import PlayerUpdatePopup
-from monster_update_popup import MonsterUpdatePopup
+from GUI.add_monster_popup import AddMonsterPopup
+from GUI.add_player_popup import AddPlayerPopup
+from GUI.player_update_popup import PlayerUpdatePopup
+from GUI.monster_update_popup import MonsterUpdatePopup
 from tkinter.messagebox import showinfo
 import json
 
@@ -41,7 +41,7 @@ class MainAppController(tk.Frame):
                   command=self._update_character).grid(row=4, column=3)
         tk.Button(self, text="Delete Character",
                   command=self._delete_character).grid(row=4, column=4)
-        tk.Button(self, text="Quit", command=self._quit_callback).grid(
+        tk.Button(self, text="Quit", command=self._quit_callback, fg="red").grid(
             row=5, column=2, columnspan=2)
 
         self._total_num_characters_label = tk.Label(
@@ -327,5 +327,6 @@ class MainAppController(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.title('Character Management System')
     MainAppController(root).pack(side=tk.TOP, fill=tk.BOTH, expand=True)
     root.mainloop()

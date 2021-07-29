@@ -1,8 +1,15 @@
+import os, sys
+p = os.path.abspath('.')
+sys.path.insert(1, p)
+
 import unittest
 import inspect
 from monster import Monster
 from character_manager import CharacterManager
 from unittest.mock import patch, mock_open
+from sqlalchemy import create_engine
+from base import Base
+import os
 
 
 class TestMonster(unittest.TestCase):
@@ -15,7 +22,7 @@ class TestMonster(unittest.TestCase):
         self.logMonster()
         self.monster = Monster("dragon", "easy")
         self.server = CharacterManager(
-            "ACIT", "/Users/QB/Desktop/Pure_Python/Assignment2")
+            "ACIT", "test_characters.sqlite")
         self.assertIsNotNone(self.monster)
 
     def test_constructor_valid(self):
@@ -144,7 +151,7 @@ class TestMonster(unittest.TestCase):
 
     def tearDown(self):
         """" Tear down """
-
+        os.remove("test_characters.sqlite")
         self.logMonster()
 
     def logMonster(self):
