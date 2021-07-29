@@ -34,7 +34,7 @@ class AddPlayerPopup(tk.Frame):
         """ Submit the Add Player """
 
         # Validate the non-string data values
-        if self._player_level.get() == "":
+        if self._player_level.get() == "" or not self._player_level.get().isdigit():
             messagebox.showerror(
                 "Error", "Player level must be a valid integer")
             return

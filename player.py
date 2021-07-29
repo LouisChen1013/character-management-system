@@ -24,6 +24,7 @@ class Player(AbstractCharacter):
         Player._validate_level(Player.PLAYER_LEVEL_LABEL, player_level)
 
         AbstractCharacter._validate_string_input(Player.JOB_LABEL, job)
+
         if job.lower() not in Player.PLAYER_JOB:
             raise ValueError(
                 "Player Job must be either assassin, knight, or warrior")
@@ -115,7 +116,6 @@ class Player(AbstractCharacter):
     @staticmethod
     def _validate_level(display_value, level):
         """ Private helper to validate player level values """
-
         if level not in Player.LEVEL_RANGE:
             raise ValueError(
                 display_value + " is out of range, please enter 1-10")
