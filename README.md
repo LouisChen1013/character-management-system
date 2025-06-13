@@ -67,7 +67,7 @@ python server_api.py
 Launch the GUI application
 
 ```bash
-python3 server_gui.py
+python server_gui.py
 ```
 
 The application window should now be visible on your screen.
