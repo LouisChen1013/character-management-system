@@ -41,13 +41,13 @@ Follow the steps below to set up the project on your local machine.
 ### Clone the repository
 
 ```bash
-git clone https://github.com/LouisChen1013/CharacterManagementSystem.git
+git clone https://github.com/LouisChen1013/character-management-system.git
 ```
 
 ### Navigate into the project folder
 
 ```bash
-cd CharacterManagementSystem
+cd character-management-system
 ```
 
 ### Install dependencies
