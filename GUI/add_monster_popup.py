@@ -1,47 +1,68 @@
 import tkinter as tk
 from tkinter import messagebox
 import requests
-import re
 
 
 class AddMonsterPopup(tk.Frame):
-    """ Popup Frame to Add a Monster """
+    """Popup Frame to Add a Monster"""
 
     def __init__(self, parent, close_callback):
-        """ Constructor """
-
-        tk.Frame.__init__(self, parent)
+        super().__init__(parent)
         self._close_cb = close_callback
-        self.grid(rowspan=2, columnspan=2)
+        self.grid(rowspan=2, columnspan=2, padx=10, pady=10)
 
-        tk.Label(self, text="Monster Type:").grid(row=1, column=1)
+        # Monster Type
+        tk.Label(self, text="Monster Type:").grid(
+            row=1, column=1, sticky="e", padx=5, pady=5
+        )
         self._monster_type = tk.Entry(self)
-        self._monster_type.grid(row=1, column=2)
-        tk.Label(self, text="Monster AI Difficulty:").grid(row=2, column=1)
+        self._monster_type.grid(row=1, column=2, padx=5, pady=5)
+
+        # Monster AI Difficulty
+        tk.Label(self, text="Monster AI Difficulty:").grid(
+            row=2, column=1, sticky="e", padx=5, pady=5
+        )
         self._monster_ai_difficulty = tk.Entry(self)
-        self._monster_ai_difficulty.grid(row=2, column=2)
+        self._monster_ai_difficulty.grid(row=2, column=2, padx=5, pady=5)
+
+        # Buttons
         tk.Button(self, text="Submit", command=self._submit_cb).grid(
-            row=4, column=1)
+            row=4, column=1, padx=5, pady=10
+        )
         tk.Button(self, text="Close", command=self._close_cb).grid(
-            row=4, column=2)
+            row=4, column=2, padx=5, pady=10
+        )
 
     def _submit_cb(self):
-        """ Submit the Add Monster """
+        """Submit the Add Monster"""
 
-        # Create the dictionary for the JSON request body
+        monster_type = self._monster_type.get().strip()
+        difficulty = self._monster_ai_difficulty.get().strip()
 
-        data = {}
-        data['monster_type'] = self._monster_type.get()
-        data['monster_ai_difficulty'] = self._monster_ai_difficulty.get()
-        data['type'] = "monster"
+        if not monster_type or not difficulty:
+            return messagebox.showwarning("Input Error", "All fields must be filled.")
 
-        """ Adds a character to the backend server"""
+        data = {
+            "monster_type": monster_type,
+            "monster_ai_difficulty": difficulty,
+            "type": "monster",
+        }
+
         headers = {"content-type": "application/json"}
-        response = requests.post(
-            "http://127.0.0.1:5000/server/characters", json=data, headers=headers)
-
-        if response.status_code == 200:
+        try:
+            response = requests.post(
+                "http://127.0.0.1:5001/server/characters",
+                json=data,
+                headers=headers,
+                timeout=5,
+            )
+            response.raise_for_status()
             self._close_cb()
-        else:
-            messagebox.showerror(
-                "Error", "Add Monster Request Failed: " + response.text)
+        except requests.HTTPError:
+            try:
+                error_msg = response.json().get("message", response.text)
+            except Exception:
+                error_msg = response.text or "Unknown error"
+            messagebox.showerror("Error", f"Add Player Request Failed:\n{error_msg}")
+        except requests.RequestException as e:
+            messagebox.showerror("Error", f"Request Failed:\n{e}")

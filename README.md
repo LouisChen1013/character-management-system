@@ -1,18 +1,20 @@
-# CharacterManagementSystem
+# Character Management System
 
-The purpose of this project is to simulate a game server management system. We build a GUI application with Tkinter that allows a user to manage the server. Users are able to query, add, update, and delete characters from the server.
+A desktop application that simulates a game server management system.
+It features a graphical interface built with Tkinter and a Flask-powered API backend, allowing users to manage game characters with full CRUD functionality.
 
 ---
 
 ## Project First Look
 
-![character_management gif](character.gif)
+![character_management gif](documents/character.gif)
 
 ## Key Features
 
-- Interfaces to query/add/update/delete characters (CRUD)
-- Server Summary and Status
-- Implement with Tkinter and Flask
+- Interfaces to **query/add/update/delete** characters (CRUD)
+- Display **server summary and statistics**
+- Built with **Tkinter (GUI)** and **Flask (API)**
+- Data stored using **SQLite**
 
 ## Technologies
 
@@ -23,51 +25,49 @@ The purpose of this project is to simulate a game server management system. We b
 - OOP
 - Unit Test
 - UML
-- Git/Github
+- Git / GitHub
 
 ---
 
 ## Installation
 
-To run this project in your local machine, please follow the instructions below.
+Follow the steps below to set up the project on your local machine.
 
 ### Prerequisites
 
 - [Python](https://www.python.org/downloads/)
 - [SQLite](https://www.sqlite.org/download.html)
 
-### Clone
+### Clone the repository
 
-Clone this repository to your local machine
-
-```{ .git }
+```bash
 git clone https://github.com/LouisChen1013/CharacterManagementSystem.git
 ```
 
-### Setup
+### Navigate into the project folder
 
-#### 1. Enter the project folder
-
-```{console}
+```bash
 cd CharacterManagementSystem
 ```
 
-#### 2. Install packages
+### Install dependencies
 
-```{console}
-pip3 install -r requirements.txt
+```bash
+pip install -r requirements.txt
 ```
 
-#### 3. Activate the API server
+### Running the Project
 
-```{console}
-python3 server_api.py
+Start the Flask API server
+
+```bash
+python server_api.py
 ```
 
-#### 4. Activate the GUI server
+Launch the GUI application
 
-```{console}
+```bash
 python3 server_gui.py
 ```
 
-Your application will be run on your window
+The application window should now be visible on your screen.

@@ -1,56 +1,67 @@
 import tkinter as tk
 from tkinter import messagebox
 import requests
-import re
 
 
 class PlayerUpdatePopup(tk.Frame):
-    """ Popup Frame to Update a Character """
+    """Popup Frame to Update a Character"""
 
     def __init__(self, parent, selected_id, level, job, close_callback):
-        """ Constructor """
-
-        tk.Frame.__init__(self, parent)
+        super().__init__(parent)
         self._close_cb = close_callback
-        self.grid(rowspan=2, columnspan=2)
-
-        tk.Label(self, text="ID:").grid(row=1, column=1)
-        tk.Label(self, text=selected_id).grid(row=1, column=2)
-        tk.Label(self, text="Level:").grid(row=2, column=1)
-        self._player_level = tk.Entry(self)
-        self._player_level.grid(row=2, column=2)
-        tk.Label(self, text="Job:").grid(row=3, column=1)
-        self._job = tk.Entry(self)
-        self._job.grid(row=3, column=2)
-        tk.Button(self, text="Submit", command=self._submit_cb).grid(row=7, column=1)
-        tk.Button(self, text="Close", command=self._close_cb).grid(row=7, column=2)
-
         self._selected_id = selected_id
+        self.grid(rowspan=2, columnspan=2, padx=10, pady=10)
+
+        tk.Label(self, text="ID:").grid(row=1, column=1, sticky="e", padx=5, pady=5)
+        tk.Label(self, text=selected_id).grid(
+            row=1, column=2, sticky="w", padx=5, pady=5
+        )
+
+        tk.Label(self, text="Level:").grid(row=2, column=1, sticky="e", padx=5, pady=5)
+        self._player_level = tk.Entry(self)
+        self._player_level.grid(row=2, column=2, padx=5, pady=5)
+
+        tk.Label(self, text="Job:").grid(row=3, column=1, sticky="e", padx=5, pady=5)
+        self._job = tk.Entry(self)
+        self._job.grid(row=3, column=2, padx=5, pady=5)
+
         self._player_level.insert(0, level)
         self._job.insert(0, job)
 
+        tk.Button(self, text="Submit", command=self._submit_cb).grid(
+            row=5, column=1, padx=5, pady=10
+        )
+        tk.Button(self, text="Close", command=self._close_cb).grid(
+            row=5, column=2, padx=5, pady=10
+        )
+
     def _submit_cb(self):
-        """ Submit Character Update """
+        level = self._player_level.get().strip()
+        job = self._job.get().strip()
 
-        # Validate the non-string data values
-        if self._player_level.get() == "":
-            messagebox.showerror(
-                "Error", "Player level must be a valid integer")
-            return
+        if not level.isdigit() or not job:
+            return messagebox.showwarning(
+                "Input Error",
+                "Player level must be a number and job must not be empty.",
+            )
 
-        """ Update a character to the backend server"""
-        data = {}
-        data['player_level'] = int(self._player_level.get())
-        data['job'] = self._job.get()
+        data = {"player_level": int(level), "job": job}
 
         headers = {"content-type": "application/json"}
-        response = requests.put(
-            "http://127.0.0.1:5000/server/character/" + str(self._selected_id), json=data, headers=headers)
-
-        if response.status_code == 200:
+        try:
+            response = requests.put(
+                f"http://127.0.0.1:5001/server/character/{self._selected_id}",
+                json=data,
+                headers=headers,
+                timeout=5,
+            )
+            response.raise_for_status()
             self._close_cb()
-        else:
-            messagebox.showerror(
-                "Error", "Unable to Upadte the Character: " + response.text)
-
-        self._close_cb()
+        except requests.HTTPError:
+            try:
+                error_msg = response.json().get("message", response.text)
+            except Exception:
+                error_msg = response.text or "Unknown error"
+            messagebox.showerror("Error", f"Update failed:\n{error_msg}")
+        except requests.RequestException as e:
+            messagebox.showerror("Error", f"Request Error:\n{e}")

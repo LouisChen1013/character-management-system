@@ -1,22 +1,21 @@
-import re
-from sqlalchemy import Column, String, Integer, Float
+from sqlalchemy import Column, String, Integer
 from base import Base
 
 
 class AbstractCharacter(Base):
-    """ Represent an abstract character """
-
-    BOOLEAN_TRUE = 1
+    """Represent an abstract character"""
 
     __tablename__ = "characters"
 
-    id = Column(Integer, primary_key=True)
-    health = Column(Integer)
-    damage = Column(Integer)
-    x = Column(Integer)
-    y = Column(Integer)
-    alive = Column(Integer)
-    type = Column(String(7))
+    id: Column[Integer] = Column(Integer, primary_key=True)
+    health: Column[Integer] = Column(Integer)
+    damage: Column[Integer] = Column(Integer)
+    x: Column[Integer] = Column(Integer)
+    y: Column[Integer] = Column(Integer)
+    alive: Column[Integer] = Column(Integer)
+    type: Column[String] = Column(String(7))
+
+    __mapper_args__ = {"polymorphic_on": type}
 
     ID_LABEL = "ID"
     MIN_RANGE = 0
@@ -27,109 +26,103 @@ class AbstractCharacter(Base):
     DAMAGE_LABEL = "Damage"
     HEALTH_LABEL = "Health"
 
-    def __init__(self, type):
-        """ Constructor - Initialize main attribute of AbstractCharacter"""
-        
-        AbstractCharacter._validate_string_input(
-            AbstractCharacter.ID_LABEL, type)
+    def __init__(self, char_type: str):
+        """Constructor - Initialize main attributes of AbstractCharacter."""
+        self._validate_character_type_input(char_type)
+
         self.id = None
         self.health = 100
         self.damage = 10
         self.x = 0
         self.y = 0
         self.alive = True
-        self.type = type
+        self.type = char_type
 
-    def move_position(self, x, y):
-        """ Moves position of character from x/y input """
+    def _validate_character_type_input(self, char_type_value):
+        """Private helper to validate the character type string."""
+        if not isinstance(char_type_value, str):
+            raise ValueError(f"{self.ID_LABEL} (Character Type) must be a string.")
+        AbstractCharacter._validate_string_input(self.ID_LABEL, char_type_value)
 
-        AbstractCharacter._validate_string_input(AbstractCharacter.X_LABEL, x)
-        AbstractCharacter._validate_position(AbstractCharacter.X_LABEL, x)
-        AbstractCharacter._validate_string_input(AbstractCharacter.Y_LABEL, y)
-        AbstractCharacter._validate_position(AbstractCharacter.Y_LABEL, y)
+    def move_position(self, x: int, y: int):
+        """Moves position of character to x/y input"""
+
+        self._validate_position_input(self.X_LABEL, x)
+        self._validate_position_input(self.Y_LABEL, y)
         self.x = x
         self.y = y
 
-    def get_position(self):
-        """ Returns character position """
-        position = [self.x, self.y]
-        return position
+    def get_position(self) -> list[int]:
+        """Returns character position as a list [x, y]"""
+        return [self.x, self.y]
 
-    def set_alive(self, alive):
-        """ Set characters existence status """
+    def set_alive(self, alive_status: bool):
+        """Set characters existence status"""
 
-        AbstractCharacter._validate_string_input(
-            AbstractCharacter.ALIVE_LABEL, alive)
-        if alive is not isinstance(alive, bool):
-            raise ValueError("Alive must be a Boolean (True/False)")
-        self.alive = alive
+        if not isinstance(alive_status, bool):
+            raise ValueError(f"{self.ALIVE_LABEL} must be a Boolean (True/False).")
+        self.alive = alive_status
 
-    def get_alive(self):
-        """ Returns characters existence Status """
-
+    def get_alive(self) -> bool:
+        """Returns characters existence Status"""
         return self.alive
 
-    def set_stats(self, damage, health):
-        """ Sets characters status """
+    def set_stats(self, damage: int, health: int):
+        """Sets characters damage and health stats"""
 
-        AbstractCharacter._validate_string_input(
-            AbstractCharacter.DAMAGE_LABEL, damage)
-        if damage is not isinstance(damage, int):
-            raise ValueError("Damage must an int")
-        AbstractCharacter._validate_string_input(
-            AbstractCharacter.HEALTH_LABEL, health)
-        if health is not isinstance(health, int):
-            raise ValueError("Health must an int")
+        if not isinstance(damage, int):
+            raise ValueError(f"{self.DAMAGE_LABEL} must be an integer.")
+        if not isinstance(health, int):
+            raise ValueError(f"{self.HEALTH_LABEL} must be an integer.")
+
+        AbstractCharacter._validate_string_input(self.DAMAGE_LABEL, damage)
+        AbstractCharacter._validate_string_input(self.HEALTH_LABEL, health)
+
         self.damage = damage
         self.health = health
 
-    def get_stats(self):
-        """ Returns characters stats """
+    def get_stats(self) -> list[int]:
+        """Returns characters stats as a list [damage, health]"""
+        return [self.damage, self.health]
 
-        stats = []
-        stats.append(self.damage)
-        stats.append(self.health)
-        return stats
-
-    def get_type(self):
-        """ Returns character type """
-
-        # Abstract parent method
+    def get_type(self) -> str:
+        """Returns character type. Abstract method."""
         raise NotImplementedError("Must implement in child class")
 
-    def get_details(self):
-        """ Returns character details """
-
-        # Abstract parent method
+    def get_details(self) -> str:
+        """Returns character details. Abstract method."""
         raise NotImplementedError("Must implement in child class")
 
-    def get_full_details(self):
-        """ Returns full character details """
-        # Abstract parent method
+    def get_full_details(self) -> str:
+        """Returns full character details. Abstract method."""
         raise NotImplementedError("Must implement in child class")
 
-    def to_dict(self):
-        """ Adds the character to dict """
-
-        # Abstract parent method
+    def to_dict(self) -> dict:
+        """Returns a dictionary representation of the character. Abstract method."""
         raise NotImplementedError("Must implement in child class")
 
     @staticmethod
-    def _validate_string_input(display_name, str_value):
-        """ Private helper to validate string values """
+    def _validate_string_input(display_name: str, value):
+        """
+        Private helper to validate string values for being non-None and non-empty.
+        It handles cases where 'value' might not be a string, letting specific
+        type checks occur elsewhere if needed.
+        """
+        if value is None:
+            raise ValueError(f"{display_name} cannot be undefined (None).")
 
-        if str_value is None:
-            raise ValueError(display_name + " cannot be undefined.")
-
-        if str_value == "":
-            raise ValueError(display_name + " cannot be empty.")
+        if isinstance(value, str) and value == "":
+            raise ValueError(f"{display_name} cannot be empty.")
 
     @staticmethod
-    def _validate_position(display_value, position_value):
-        """ Private helper to validate position(x,y) values """
+    def _validate_position_input(display_name: str, position_value: int):
+        """Private helper to validate position (x,y) values for type and range."""
+        if not isinstance(position_value, int):
+            raise ValueError(f"{display_name} must be an integer.")
 
-        if position_value < AbstractCharacter.MIN_RANGE or position_value > AbstractCharacter.MAX_RANGE:
-            raise ValueError(display_value + " is out of range.")
-
-        if position_value is not isinstance(position_value, int):
-            raise ValueError(display_value + " must be an integer")
+        if not (
+            AbstractCharacter.MIN_RANGE <= position_value <= AbstractCharacter.MAX_RANGE
+        ):
+            raise ValueError(
+                f"{display_name} ({position_value}) is out of range. Must be between {AbstractCharacter.MIN_RANGE} and {AbstractCharacter.MAX_RANGE}."
+            )

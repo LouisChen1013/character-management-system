@@ -1,44 +1,51 @@
 import tkinter as tk
 from tkinter import messagebox
 import requests
-import re
-from flask import Flask, request
-import json
 
 
 class DeleteCharacterPopup(tk.Frame):
-    """ Popup Frame to remove a character """
+    """Popup Frame to Delete a Character by ID"""
 
     def __init__(self, parent, close_callback):
-        """ Constructor """
-
-        tk.Frame.__init__(self, parent)
+        super().__init__(parent)
         self._close_cb = close_callback
-        self.grid(rowspan=2, columnspan=2)
+        self.grid(rowspan=2, columnspan=2, padx=10, pady=10)
 
-        tk.Label(self, text="ID:").grid(row=1, column=1)
-        self.id = tk.Entry(self)
-        self.id.grid(row=1, column=2)
+        tk.Label(self, text="Character ID:").grid(
+            row=1, column=1, sticky="e", padx=5, pady=5
+        )
+        self._id_entry = tk.Entry(self)
+        self._id_entry.grid(row=1, column=2, padx=5, pady=5)
 
         tk.Button(self, text="Submit", command=self._submit_cb).grid(
-            row=9, column=1)
+            row=3, column=1, padx=5, pady=10
+        )
         tk.Button(self, text="Close", command=self._close_cb).grid(
-            row=9, column=2)
+            row=3, column=2, padx=5, pady=10
+        )
 
     def _submit_cb(self):
-        """ Submit the Remove Device """
+        char_id = self._id_entry.get().strip()
 
-        # Create the dictionary for the JSON request body
-        data = {}
-        data['id'] = self.id.get()
+        if not char_id:
+            return messagebox.showwarning(
+                "Input Error", "Character ID cannot be empty."
+            )
+        if not char_id.isdigit():
+            return messagebox.showwarning(
+                "Input Error", "Character ID must be a number."
+            )
 
-        # Implement your code here
-        url = "http://127.0.0.1:5000/server/characters/" + data['id']
-        response = requests.delete(url, json=data, headers={
-                                   'Content-type': 'application/json'})
-
-        if response.status_code == 200:
+        url = f"http://127.0.0.1:5001/server/characters/{char_id}"
+        try:
+            response = requests.delete(url, timeout=5)
+            response.raise_for_status()
             self._close_cb()
-        else:
-            messagebox.showerror(
-                "Error", "Delete Character Request Failed: " + response.text)
+        except requests.HTTPError:
+            try:
+                error_msg = response.json().get("message", response.text)
+            except Exception:
+                error_msg = response.text or "Unknown error"
+            messagebox.showerror("Error", f"Delete failed:\n{error_msg}")
+        except requests.RequestException as e:
+            messagebox.showerror("Error", f"Request Error:\n{e}")

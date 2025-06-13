@@ -1,332 +1,205 @@
+import re
 import tkinter as tk
-import requests
 from tkinter import messagebox
+from tkinter.messagebox import showinfo
+import requests
 from GUI.add_monster_popup import AddMonsterPopup
 from GUI.add_player_popup import AddPlayerPopup
 from GUI.player_update_popup import PlayerUpdatePopup
 from GUI.monster_update_popup import MonsterUpdatePopup
-from tkinter.messagebox import showinfo
-import json
+
+
+def extract_character_id_from_selection(listbox):
+    selected = listbox.curselection()
+    if not selected:
+        messagebox.showwarning("Warning", "No character selected.")
+        return None, None
+
+    entry = listbox.get(selected[0])
+    match = re.search(r"id:\s*(\d+)", entry)
+    if match:
+        return match.group(1), entry
+    else:
+        messagebox.showerror("Error", "Unable to parse ID from selected entry.")
+        return None, None
 
 
 class MainAppController(tk.Frame):
-    """ Main Application for GUI """
+    """Main Application for GUI"""
 
     def __init__(self, parent):
-        """ Initialize Main Application """
+        super().__init__(parent)
+        self._init_variables()
+        self._init_widgets()
+        self._refresh_all()
+
+    def _init_variables(self):
         self._total_num_characters = tk.IntVar()
         self._num_monsters = tk.IntVar()
         self._num_players = tk.IntVar()
         self._avg_player_level = tk.IntVar()
         self._avg_monster_ai_difficulty = tk.StringVar()
 
-        tk.Frame.__init__(self, parent)
+    def _init_widgets(self):
+        tk.Label(self, text="Characters in the Server").grid(
+            row=1, column=2, padx=5, pady=5
+        )
 
-        tk.Label(self, text="Characters in the Server").grid(row=1, column=2)
         self._characters_listbox = tk.Listbox(self, width=100)
-        self._characters_listbox.grid(row=2, column=1, columnspan=5)
-        tk.Button(self, text="Show All Character",
-                  command=lambda: [self._server_stats(), self._update_characters_list()]).grid(row=3, column=1)
-        tk.Button(self, text="Show Player",
-                  command=self._toggle_player).grid(row=3, column=2)
-        tk.Button(self, text="Show Monster",
-                  command=self._toggle_monster).grid(row=3, column=3)
-        tk.Button(self, text="Show Details",
-                  command=self._show_details).grid(row=3, column=4)
-        tk.Button(self, text="Add Player",
-                  command=self._add_player).grid(row=4, column=1)
-        tk.Button(self, text="Add Monster",
-                  command=self._add_monster).grid(row=4, column=2)
-        tk.Button(self, text="Update Character",
-                  command=self._update_character).grid(row=4, column=3)
-        tk.Button(self, text="Delete Character",
-                  command=self._delete_character).grid(row=4, column=4)
-        tk.Button(self, text="Quit", command=self._quit_callback, fg="red").grid(
-            row=5, column=2, columnspan=2)
+        self._characters_listbox.grid(row=2, column=1, columnspan=5, padx=5, pady=5)
 
-        self._total_num_characters_label = tk.Label(
-            self, text="Total Character:")
-        self._total_num_characters_label.grid(row=6, column=2)
-        self._total_num_characters_text = tk.Label(
-            self, textvariable=self._total_num_characters)
-        self._total_num_characters_text.grid(row=6, column=3)
+        button_data = [
+            ("Show All Character", self._refresh_all, 1, 3, 1, "black"),
+            ("Show Player", self._toggle_player, 2, 3, 1, "black"),
+            ("Show Monster", self._toggle_monster, 3, 3, 1, "black"),
+            ("Show Details", self._show_details, 4, 3, 1, "black"),
+            ("Add Player", self._add_player, 1, 4, 1, "black"),
+            ("Add Monster", self._add_monster, 2, 4, 1, "black"),
+            ("Update Character", self._update_character, 3, 4, 1, "black"),
+            ("Delete Character", self._delete_character, 4, 4, 1, "black"),
+            ("Quit", self.quit, 2, 5, 2, "red"),
+        ]
 
-        self._total_num_monsters_label = tk.Label(self, text="Total Monsters:")
-        self._total_num_monsters_label.grid(row=7, column=2)
-        self._total_num_monsters_text = tk.Label(
-            self, textvariable=self._num_monsters)
-        self._total_num_monsters_text.grid(row=7, column=3)
+        for label, cmd, col, row, colspan, fg in button_data:
+            tk.Button(self, text=label, command=cmd, fg=fg).grid(
+                row=row, column=col, columnspan=colspan, padx=5, pady=5
+            )
 
-        self._total_num_players_label = tk.Label(self, text="Total Players:")
-        self._total_num_players_label.grid(row=8, column=2)
-        self._total_num_players_text = tk.Label(
-            self, textvariable=self._num_players)
-        self._total_num_players_text.grid(row=8, column=3)
+        self._build_stats_labels()
 
-        self._avg_player_level_label = tk.Label(
-            self, text="Average Player Level:")
-        self._avg_player_level_label.grid(row=9, column=2)
-        self._avg_player_level_text = tk.Label(
-            self, textvariable=self._avg_player_level)
-        self._avg_player_level_text.grid(row=9, column=3)
+    def _build_stats_labels(self):
+        stats_data = [
+            ("Total Character:", self._total_num_characters, 6),
+            ("Total Monsters:", self._num_monsters, 7),
+            ("Total Players:", self._num_players, 8),
+            ("Average Player Level:", self._avg_player_level, 9),
+            ("Average Monster AI Difficulty:", self._avg_monster_ai_difficulty, 10),
+        ]
+        for label, var, row in stats_data:
+            tk.Label(self, text=label).grid(
+                row=row, column=2, padx=5, pady=2, sticky="w"
+            )
+            tk.Label(self, textvariable=var).grid(
+                row=row, column=3, padx=5, pady=2, sticky="w"
+            )
 
-        self._avg_monster_ai_difficulty_label = tk.Label(
-            self, text="Average Monster AI Difficulty:")
-        self._avg_monster_ai_difficulty_label.grid(row=10, column=2)
-        self._avg_monster_ai_difficulty_text = tk.Label(
-            self, textvariable=self._avg_monster_ai_difficulty)
-        self._avg_monster_ai_difficulty_text.grid(row=10, column=3)
-
+    def _refresh_all(self):
         self._update_characters_list()
         self._server_stats()
+
+    def _safe_request(self, method, url, **kwargs):
+        try:
+            response = requests.request(method, url, timeout=5, **kwargs)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            messagebox.showerror("Error", f"Request failed: {e}")
+            return None
 
     def _add_player(self):
-        """ Add Player Popup """
         self._popup_win = tk.Toplevel()
-        self._popup = AddPlayerPopup(self._popup_win, self._close_player_cb)
-
-    def _close_player_cb(self):
-        """ Close Add Player Popup """
-        self._popup_win.destroy()
-        self._update_characters_list()
-        self._server_stats()
+        AddPlayerPopup(self._popup_win, self._close_popup_cb)
 
     def _add_monster(self):
-        """ Add Monster Popup """
         self._popup_win = tk.Toplevel()
-        self._popup = AddMonsterPopup(self._popup_win, self._close_monster_cb)
+        AddMonsterPopup(self._popup_win, self._close_popup_cb)
 
-    def _close_monster_cb(self):
-        """ Close Add Monster Popup """
+    def _close_popup_cb(self):
         self._popup_win.destroy()
-        self._update_characters_list()
-        self._server_stats()
-
+        self._refresh_all()
 
     def _update_character(self):
-        """ Upadte the Selected Character """
-        selected = self._characters_listbox.curselection()
-        if selected is None or len(selected) == 0:
-            messagebox.showwarning(
-                "Warning", "No character selected to update.")
+        char_id, entry = extract_character_id_from_selection(self._characters_listbox)
+        if not char_id:
             return
 
-        selection = str(self._characters_listbox.get(selected))
-        nums = [int(s) for s in selection.split() if s.isdigit()]
-        selected_id = nums[0]
-        job_type = selection.split()[-1]
-        if "player" in selection:
-            level = nums[1]
-            self._popup_win = tk.Toplevel()
-            self._popup = PlayerUpdatePopup(self._popup_win, selected_id, level, job_type, self._close_update_cb)
-        else:
-            difficulty = selection.split()[-2]
-            self._popup_win = tk.Toplevel()
-            self._popup = MonsterUpdatePopup(self._popup_win, selected_id, difficulty, job_type, self._close_update_cb)
-
-    def _close_update_cb(self):
-        """ Close Update Character Popup """
-        self._popup_win.destroy()
-        self._update_characters_list()
-        self._server_stats()
+        try:
+            char_id = int(char_id)
+            parts = entry.split()
+            if "player" in entry:
+                level = int(next(p for p in parts if p.isdigit()))
+                job_type = parts[-1]
+                self._popup_win = tk.Toplevel()
+                PlayerUpdatePopup(
+                    self._popup_win, char_id, level, job_type, self._close_popup_cb
+                )
+            else:
+                difficulty = parts[-2]
+                job_type = parts[-1]
+                self._popup_win = tk.Toplevel()
+                MonsterUpdatePopup(
+                    self._popup_win, char_id, difficulty, job_type, self._close_popup_cb
+                )
+        except Exception:
+            messagebox.showerror("Error", "Unable to parse character data.")
 
     def _show_details(self):
-        """ Display a Character Detail """
-
-        selected = self._characters_listbox.curselection()
-        if selected is None or len(selected) == 0:
-            messagebox.showwarning(
-                "Warning", "No character selected to show details.")
+        char_id, _ = extract_character_id_from_selection(self._characters_listbox)
+        if not char_id:
             return
 
-        selection = str(self._characters_listbox.get(selected)) 
-        nums = [int(s) for s in selection.split() if s.isdigit()]
-        selected_id = nums[0]
-        url = "http://127.0.0.1:5000/server/characters/details/" + str(selected_id)
-        response = requests.get(url)
-
-        if response.status_code != 200:
-            messagebox.showwarning(
-                "Warning", "Could not retrieve the characters.")
-            return
-        character_stats = response.json()
-        showinfo("Character Stats", character_stats)
+        response = self._safe_request(
+            "GET", f"http://127.0.0.1:5001/server/characters/details/{char_id}"
+        )
+        if response:
+            showinfo("Character Stats", response.json())
 
     def _delete_character(self):
-        """ Deletes the Selected Character """
-        selected = self._characters_listbox.curselection()
-        if selected is None or len(selected) == 0:
-            messagebox.showwarning(
-                "Warning", "No character selected to delete.")
+        char_id, _ = extract_character_id_from_selection(self._characters_listbox)
+        if not char_id:
             return
 
-        selection = str(self._characters_listbox.get(selected
-            )) 
-        nums = [int(s) for s in selection.split() if s.isdigit()]
-        selected_id = nums[0]
-        result = messagebox.askyesno(
-            "Confirm", "Are you sure you want to delete the character?")
-        if result:
-            response = requests.delete(
-                "http://127.0.0.1:5000/server/characters/" + str(selected_id))
-            self._update_characters_list()
-            self._server_stats()
-
-    def _quit_callback(self):
-        """ Quit """
-        self.quit()
+        if messagebox.askyesno(
+            "Confirm", "Are you sure you want to delete the character?"
+        ):
+            self._safe_request(
+                "DELETE", f"http://127.0.0.1:5001/server/characters/{char_id}"
+            )
+            self._refresh_all()
 
     def _toggle_player(self):
-        """ Display Player Listbox """
         self._characters_listbox.delete(0, tk.END)
-
-        self._forgot_stats()
-
-        self._total_num_players_label = tk.Label(self, text="Total Players:")
-        self._total_num_players_label.grid(row=6, column=2)
-        self._total_num_players_text = tk.Label(
-            self, textvariable=self._num_players)
-        self._total_num_players_text.grid(row=6, column=3)
-
-        self._avg_player_level_label = tk.Label(
-            self, text="Average Player Level:")
-        self._avg_player_level_label.grid(row=7, column=2)
-        self._avg_player_level_text = tk.Label(
-            self, textvariable=self._avg_player_level)
-        self._avg_player_level_text.grid(row=7, column=3)
-
-        # Player
-        response = requests.get(
-            "http://127.0.0.1:5000/server/characters/all/player")
-
-        if response.status_code != 200:
-            messagebox.showwarning(
-                "Warning", "Could not retrieve the characters.")
-            return
-
-        player_descs = response.json()
-        for player_desc in player_descs:
-            self._characters_listbox.insert(tk.END, player_desc)
+        response = self._safe_request(
+            "GET", "http://127.0.0.1:5001/server/characters/all/player"
+        )
+        if response:
+            for player in response.json():
+                self._characters_listbox.insert(tk.END, player)
 
     def _toggle_monster(self):
-        """ Display Monster Listbox """
         self._characters_listbox.delete(0, tk.END)
-
-        self._forgot_stats()
-
-        self._total_num_monsters_label = tk.Label(self, text="Total Monsters:")
-        self._total_num_monsters_label.grid(row=6, column=2)
-        self._total_num_monsters_text = tk.Label(
-            self, textvariable=self._num_monsters)
-        self._total_num_monsters_text.grid(row=6, column=3)
-
-        self._avg_monster_ai_difficulty_label = tk.Label(
-            self, text="Average Monster AI Difficulty:")
-        self._avg_monster_ai_difficulty_label.grid(row=7, column=2)
-        self._avg_monster_ai_difficulty_text = tk.Label(
-            self, textvariable=self._avg_monster_ai_difficulty)
-        self._avg_monster_ai_difficulty_text.grid(row=7, column=3)
-
-        # Monster
-        response = requests.get(
-            "http://127.0.0.1:5000/server/characters/all/monster")
-
-        if response.status_code != 200:
-            messagebox.showwarning(
-                "Warning", "Could not retrieve the characters.")
-            return
-
-        monster_descs = response.json()
-        for monster_desc in monster_descs:
-            self._characters_listbox.insert(tk.END, monster_desc)
+        response = self._safe_request(
+            "GET", "http://127.0.0.1:5001/server/characters/all/monster"
+        )
+        if response:
+            for monster in response.json():
+                self._characters_listbox.insert(tk.END, monster)
 
     def _update_characters_list(self):
-        """ Update the List of Character Descriptions """
-
         self._characters_listbox.delete(0, tk.END)
-
-        # All Characters
-        response = requests.get(
-            "http://127.0.0.1:5000/server/characters/all_details")
-
-        if response.status_code != 200:
-            messagebox.showwarning(
-                "Warning", "Could not retrieve the characters.")
-            return
-
-        character_descs = response.json()
-        for character_desc in character_descs:
-            self._characters_listbox.insert(tk.END, character_desc)
+        response = self._safe_request(
+            "GET", "http://127.0.0.1:5001/server/characters/all_details"
+        )
+        if response:
+            for character in response.json():
+                self._characters_listbox.insert(tk.END, character)
 
     def _server_stats(self):
-        """ Show Server Stats """
-
-        self._forgot_stats()
-
-        response = requests.get("http://127.0.0.1:5000/server/serverstats")
-
-        if response.status_code != 200:
-            messagebox.showwarning("Warning", "Could not retrieve the stats.")
-            return
-
-        stats = response.json()
-
-        self._total_num_characters.set(stats["total_num_characters"])
-        self._num_monsters.set(stats["num_monsters"])
-        self._num_players.set(stats["num_players"])
-        self._avg_player_level.set(stats["avg_player_level"])
-        self._avg_monster_ai_difficulty.set(stats["avg_monster_ai_difficulty"])
-
-        self._total_num_characters_label = tk.Label(
-            self, text="Total Character:")
-        self._total_num_characters_label.grid(row=6, column=2)
-        self._total_num_characters_text = tk.Label(
-            self, textvariable=self._total_num_characters)
-        self._total_num_characters_text.grid(row=6, column=3)
-
-        self._total_num_monsters_label = tk.Label(self, text="Total Monsters:")
-        self._total_num_monsters_label.grid(row=7, column=2)
-        self._total_num_monsters_text = tk.Label(
-            self, textvariable=self._num_monsters)
-        self._total_num_monsters_text.grid(row=7, column=3)
-
-        self._total_num_players_label = tk.Label(self, text="Total Players:")
-        self._total_num_players_label.grid(row=8, column=2)
-        self._total_num_players_text = tk.Label(
-            self, textvariable=self._num_players)
-        self._total_num_players_text.grid(row=8, column=3)
-
-        self._avg_player_level_label = tk.Label(
-            self, text="Average Player Level:")
-        self._avg_player_level_label.grid(row=9, column=2)
-        self._avg_player_level_text = tk.Label(
-            self, textvariable=self._avg_player_level)
-        self._avg_player_level_text.grid(row=9, column=3)
-
-        self._avg_monster_ai_difficulty_label = tk.Label(
-            self, text="Average Monster AI Difficulty:")
-        self._avg_monster_ai_difficulty_label.grid(row=10, column=2)
-        self._avg_monster_ai_difficulty_text = tk.Label(
-            self, textvariable=self._avg_monster_ai_difficulty)
-        self._avg_monster_ai_difficulty_text.grid(row=10, column=3)
-
-    def _forgot_stats(self):
-        """ Hide Server Stats """
-
-        self._total_num_characters_label.grid_forget()
-        self._total_num_characters_text.grid_forget()
-        self._total_num_players_label.grid_forget()
-        self._total_num_players_text.grid_forget()
-        self._avg_player_level_label.grid_forget()
-        self._avg_player_level_text.grid_forget()
-        self._total_num_monsters_label.grid_forget()
-        self._total_num_monsters_text.grid_forget()
-        self._avg_monster_ai_difficulty_label.grid_forget()
-        self._avg_monster_ai_difficulty_text.grid_forget()
+        response = self._safe_request("GET", "http://127.0.0.1:5001/server/serverstats")
+        if response:
+            stats = response.json()
+            self._total_num_characters.set(stats.get("total_num_characters", 0))
+            self._num_monsters.set(stats.get("num_monsters", 0))
+            self._num_players.set(stats.get("num_players", 0))
+            self._avg_player_level.set(stats.get("avg_player_level", 0))
+            self._avg_monster_ai_difficulty.set(
+                stats.get("avg_monster_ai_difficulty", "N/A")
+            )
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title('Character Management System')
+    root.title("Character Management System")
+    root.geometry("900x500")
     MainAppController(root).pack(side=tk.TOP, fill=tk.BOTH, expand=True)
     root.mainloop()

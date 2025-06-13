@@ -1,295 +1,268 @@
-from unittest.mock import patch, mock_open
 from abstract_character import AbstractCharacter
 from player import Player
 from monster import Monster
 from server_stats import ServerStats
-import os.path
-import json
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, select
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker, Session
 
 
 class CharacterManager:
-    """ This is the Character Manager class """
+    """Manages character data (Players and Monsters) on a server,
+    providing CRUD operations and server statistics."""
 
-    CHARACTER_LABEL = "Server Name"
+    SERVER_NAME_LABEL = "Server Name"
     ID_LABEL = "ID"
     DB_NAME_LABEL = "Database Name"
     JOB_TYPE_LABEL = "Job/Type"
     LEVEL_LABEL = "Level"
     DIFFICULTY_LABEL = "Difficulty"
 
-    def __init__(self, server_name, db_filename):
-        """ Constructor - Initialize main attribute of CharacterManager """
+    def __init__(self, server_name: str, db_filename: str, engine: Engine = None):
+        """
+        Constructor - Initializes the CharacterManager with a server name
+        and sets up the database connection.
+        """
 
-        CharacterManager._validate_string_input(
-            CharacterManager.CHARACTER_LABEL, server_name)
-        if server_name is None or not isinstance(server_name, str):
-            raise ValueError("Server Name must be string")
-
-        CharacterManager._validate_string_input(
-            CharacterManager.DB_NAME_LABEL, db_filename)
-        if db_filename is None or not isinstance(db_filename, str):
-            raise ValueError("Database Name must be string")
-
-        engine = create_engine('sqlite:///' + db_filename)
-        self._db_session = sessionmaker(bind=engine)
-
-        self._db_filename = db_filename
+        # Validate server_name
+        self._validate_non_empty_string(self.SERVER_NAME_LABEL, server_name)
+        if not isinstance(server_name, str):
+            raise ValueError("Server Name must be a string.")
         self._server_name = server_name
 
-    def add_character(self, character_obj):
-        """ Adds character object to character list if it is not on the list """
+        # Validate db_filename
+        self._validate_non_empty_string(self.DB_NAME_LABEL, db_filename)
+        if not isinstance(db_filename, str):
+            raise ValueError("Database Name must be a string.")
+        self._db_filename = db_filename
+
+        if engine:
+            self._engine = engine
+        else:
+            self._engine = create_engine(f"sqlite:///{db_filename}")
+        self._db_session_factory = sessionmaker(bind=self._engine)
+
+    def _validate_non_empty_string(self, display_name: str, value):
+        """Private helper to validate that a value is a non-empty string."""
+
+        if value is None:
+            raise ValueError(f"{display_name} cannot be undefined (None).")
+        if not isinstance(value, str):
+            raise ValueError(f"{display_name} must be a string.")
+        if value == "":
+            raise ValueError(f"{display_name} cannot be empty.")
+
+    def _validate_integer_id(self, display_name: str, id_value):
+        """Private helper to validate that an ID is an integer."""
+
+        if id_value is None:
+            raise ValueError(f"{display_name} cannot be undefined (None).")
+        if id_value == "":
+            raise ValueError(f"{display_name} cannot be empty.")
+        if not isinstance(id_value, int):
+            raise ValueError(f"{display_name} needs to be an integer.")
+
+    def add_character(self, character_obj: AbstractCharacter):
+        """Adds a character object to the database."""
 
         if character_obj is None:
-            raise ValueError("Character Object cannot be undefined")
-        if character_obj == "":
-            raise ValueError("Character Object cannot be empty")
+            raise ValueError("Character Object cannot be undefined.")
         if not isinstance(character_obj, AbstractCharacter):
-            raise ValueError("Invalid Character Object")
-
-        session = self._db_session()
-        session.add(character_obj)
-        session.commit()
-        session.close()
-
-    def character_exists(self, id):
-        """ Checks if character already exists in character list """
-
-        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
-        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
-
-        session = self._db_session()
-        character = session.query(AbstractCharacter).filter(
-            AbstractCharacter.id == id).first()
-        session.close()
-
-        if character is not None:
-            return True
-
-        return False
-
-    def get(self, id):
-        """ get – Takes in an ID and returns that entity object from the list of entities, if it exists. Returns None if it does not exist. """
-
-        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
-        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
-        session = self._db_session()
-
-        if self.character_exists(id):
-            character = session.query(Player).filter(
-                Player.type == "player", Player.id == id).first()
-            if character is None:
-                character = session.query(Monster).filter(
-                    Monster.type == "monster", Monster.id == id).first()
-        else:
-            raise ValueError("Character ID does not exist")
-
-        session.close()
-        return character
-
-    def get_all(self):
-        """ Returns a list of all characters """
-        session = self._db_session()
-        characters = characters = session.query(Player).filter(
-            Player.type == "player").all() + session.query(Monster).filter(
-            Monster.type == "monster").all()
-        session.close()
-        return characters
-
-    def get_all_by_type(self, character_type):
-        """ Returns character list by type """
-
-        if character_type is None or character_type not in ["player", "monster"]:
             raise ValueError(
-                "Character type must be either player or monster")
+                "Invalid Character Object: Must be an instance of AbstractCharacter or its subclass."
+            )
 
-        session = self._db_session()
+        with self._db_session_factory() as session:
+            session.add(character_obj)
+            session.flush()
+            session.commit()
 
-        if character_type == Player.CHARACTER_TYPE:
-            characters = session.query(Player).filter(
-                Player.type == "player").all()
-        elif character_type == Monster.CHARACTER_TYPE:
-            characters = session.query(Monster).filter(
-                Monster.type == "monster").all()
-        else:
-            characters = []
+    def character_exists(self, char_id: int) -> bool:
+        """Checks if a character with the given ID exists in the database."""
 
-        session.close()
-        return characters
+        self._validate_integer_id(self.ID_LABEL, char_id)
 
-    def update_character(self, id, job_type, level_difficulty):
-        """ Update character – Takes in an entity object and replaces the existing entity in the list of entities based on the ID. """
+        with self._db_session_factory() as session:
+            character = session.execute(
+                select(AbstractCharacter).filter(AbstractCharacter.id == char_id)
+            ).scalar_one_or_none()
 
-        # Raises an exception if an entity with the same ID does not exist in the list of entities.
-        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
-        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
+        return character is not None
 
-        CharacterManager._validate_string_input(
-            CharacterManager.JOB_TYPE_LABEL, job_type)
+    def get(self, char_id: int) -> AbstractCharacter:
+        """
+        Retrieves a character object by ID from the database.
+        Attempts to load as Player then Monster if type is ambiguous.
+        """
 
-        session = self._db_session()
+        self._validate_integer_id(self.ID_LABEL, char_id)
 
-        if self.character_exists(id):
-            character = session.query(AbstractCharacter).filter(
-                AbstractCharacter.id == id).first()
-            if character.type == "player":
-                CharacterManager._validate_int_id(
-                    CharacterManager.LEVEL_LABEL, level_difficulty)
-                character = session.query(Player).filter(
-                    Player.type == "player", Player.id == id).first()
-                character.set_job(job_type)
-                character.set_level(level_difficulty)
-            else:
-                CharacterManager._validate_string_input(
-                    CharacterManager.DIFFICULTY_LABEL, level_difficulty)
-                character = session.query(Monster).filter(
-                    Monster.type == "monster", Monster.id == id).first()
-                character.set_monster_type(job_type)
-                character.set_monster_ai_difficulty(level_difficulty)
-        else:
-            raise ValueError("Character ID does not exist")
+        with self._db_session_factory() as session:
+            character = session.execute(
+                select(Player).filter(Player.id == char_id)
+            ).scalar_one_or_none()
 
-        session.commit()
-
-        session.close()
-
-    def delete_character(self, id):
-        """ Delete existing character from character list """
-
-        CharacterManager._validate_string_input(
-            CharacterManager.ID_LABEL, id)
-        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
-
-        session = self._db_session()
-
-        character = session.query(AbstractCharacter).filter(
-            AbstractCharacter.id == id).first()
+            if character is None:
+                character = session.execute(
+                    select(Monster).filter(Monster.id == char_id)
+                ).scalar_one_or_none()
 
         if character is None:
-            session.close()
-            raise ValueError("Character does not exist")
+            raise ValueError(f"Character with ID {char_id} does not exist.")
 
-        session.delete(character)
-        session.commit()
-        session.close()
+        return character
 
-    def get_server_name(self):
-        """ Returns server name """
+    def get_all(self) -> list[AbstractCharacter]:
+        """Returns a list of all characters (Players and Monsters) in the database."""
+
+        with self._db_session_factory() as session:
+            players = session.execute(select(Player)).scalars().all()
+            monsters = session.execute(select(Monster)).scalars().all()
+            characters = players + monsters
+        return characters
+
+    def get_all_by_type(self, character_type: str) -> list[AbstractCharacter]:
+        """Returns a list of characters filtered by type ('player' or 'monster')."""
+
+        self._validate_non_empty_string("Character type", character_type)
+        if character_type not in [Player.CHARACTER_TYPE, Monster.CHARACTER_TYPE]:
+            raise ValueError("Character type must be either 'player' or 'monster'.")
+
+        with self._db_session_factory() as session:
+            if character_type == Player.CHARACTER_TYPE:
+                characters = session.execute(select(Player)).scalars().all()
+            elif character_type == Monster.CHARACTER_TYPE:
+                characters = session.execute(select(Monster)).scalars().all()
+            else:
+                characters = []
+        return characters
+
+    def update_character(
+        self, char_id: int, type_specific_param1, type_specific_param2
+    ):
+        """
+        Updates an existing character's job/type and level/difficulty.
+        The exact parameters (job_type, level_difficulty) depend on the character's type.
+        """
+
+        self._validate_integer_id(self.ID_LABEL, char_id)
+
+        character = self.get(char_id)
+
+        with self._db_session_factory() as session:
+            if character.type == Player.CHARACTER_TYPE:
+                self._validate_non_empty_string(
+                    self.JOB_TYPE_LABEL, type_specific_param1
+                )
+                self._validate_integer_id(self.LEVEL_LABEL, type_specific_param2)
+                player = session.get(Player, char_id)
+                player.set_job(type_specific_param1)
+                player.set_level(type_specific_param2)
+
+            elif character.type == Monster.CHARACTER_TYPE:
+                self._validate_non_empty_string(
+                    self.JOB_TYPE_LABEL, type_specific_param1
+                )
+                self._validate_non_empty_string(
+                    self.DIFFICULTY_LABEL, type_specific_param2
+                )
+                monster = session.get(Monster, char_id)
+                monster.set_monster_type(type_specific_param1)
+                monster.set_monster_ai_difficulty(type_specific_param2)
+            else:
+                raise ValueError("Unsupported character type for update.")
+
+            session.commit()
+
+    def delete_character(self, char_id: int):
+        """Deletes an existing character from the database by ID."""
+
+        self._validate_integer_id(self.ID_LABEL, char_id)
+
+        with self._db_session_factory() as session:
+            character = session.execute(
+                select(AbstractCharacter).filter(AbstractCharacter.id == char_id)
+            ).scalar_one_or_none()
+
+            if character is None:
+                raise ValueError(f"Character with ID {char_id} does not exist.")
+
+            session.delete(character)
+            session.commit()
+
+    def get_server_name(self) -> str:
+        """Returns the server name."""
 
         return self._server_name
 
-    def get_server_stats(self):
-        """ Returns a ServerStats object """
+    def get_server_stats(self) -> ServerStats:
+        """Calculates and returns a ServerStats object based on current character data."""
 
-        session = self._db_session()
-        characters = self.get_all_by_type(
-            "player") + self.get_all_by_type("monster")
-        session.close()
+        all_players = self.get_all_by_type("player")
+        all_monsters = self.get_all_by_type("monster")
+        characters = all_players + all_monsters
 
         total_num_characters = len(characters)
-        avg_player_level = 0
+        num_players = len(all_players)
+        num_monsters = len(all_monsters)
+
         total_player_level = 0
-        avg_monster_ai_difficulty = 0
-        total_monster_level = 0
-        num_players = len(self.get_all_by_type("player"))
-        num_monsters = len(self.get_all_by_type("monster"))
+        total_monster_difficulty_value = 0
 
-        for curr_character in characters:
-            if curr_character.type == Player.CHARACTER_TYPE:
-                total_player_level += curr_character.get_level()
-            else:
-                if curr_character.get_monster_ai_difficulty() == "easy":
-                    total_monster_level += 1
-                elif curr_character.get_monster_ai_difficulty() == "normal":
-                    total_monster_level += 2
-                elif curr_character.get_monster_ai_difficulty() == "hard":
-                    total_monster_level += 3
-        if num_players != 0:
-            avg_player_level = int(total_player_level / num_players)
+        for char in characters:
+            if char.type == Player.CHARACTER_TYPE:
+                total_player_level += char.get_level()
+            elif char.type == Monster.CHARACTER_TYPE:
+                difficulty = char.get_monster_ai_difficulty()
+                if difficulty == "easy":
+                    total_monster_difficulty_value += 1
+                elif difficulty == "normal":
+                    total_monster_difficulty_value += 2
+                elif difficulty == "hard":
+                    total_monster_difficulty_value += 3
+
+        avg_player_level = (
+            int(total_player_level / num_players) if num_players != 0 else 0
+        )
+
+        avg_monster_ai_difficulty_score = (
+            total_monster_difficulty_value / num_monsters if num_monsters != 0 else 0
+        )
+
+        avg_monster_ai_difficulty_str: str
+        if avg_monster_ai_difficulty_score == 0:
+            avg_monster_ai_difficulty_str = "not available"
+        elif round(avg_monster_ai_difficulty_score) == 1:
+            avg_monster_ai_difficulty_str = "easy"
+        elif round(avg_monster_ai_difficulty_score) == 2:
+            avg_monster_ai_difficulty_str = "normal"
         else:
-            avg_player_level = 0
+            avg_monster_ai_difficulty_str = "hard"
 
-        if num_monsters != 0:
-            avg_monster_ai_difficulty = total_monster_level / num_monsters
-        else:
-            avg_monster_ai_difficulty = 0
+        return ServerStats(
+            total_num_characters,
+            num_monsters,
+            num_players,
+            avg_player_level,
+            avg_monster_ai_difficulty_str,
+        )
 
-        if avg_monster_ai_difficulty == 0:
-            avg_monster_ai_difficulty = "not available"
-        elif round(avg_monster_ai_difficulty) == 1:
-            avg_monster_ai_difficulty = "easy"
-        elif round(avg_monster_ai_difficulty) == 2:
-            avg_monster_ai_difficulty = "normal"
-        else:
-            avg_monster_ai_difficulty = "hard"
+    def get_character_details(self, char_id: int) -> str:
+        """Returns full details for a single character by ID."""
 
-        return ServerStats(total_num_characters, num_monsters, num_players, avg_player_level, avg_monster_ai_difficulty)
+        self._validate_integer_id(self.ID_LABEL, char_id)
+        character = self.get(char_id)
+        return character.get_full_details()
 
-    def get_character_details(self, id):
-        """ Returns character details """
+    def get_character_details_by_type(self, character_type: str) -> list[str]:
+        """Returns a list of brief details for characters of a specific type."""
 
-        CharacterManager._validate_string_input(CharacterManager.ID_LABEL, id)
-        CharacterManager._validate_int_id(CharacterManager.ID_LABEL, id)
+        characters = self.get_all_by_type(character_type)
+        return [char.get_details() for char in characters]
 
-        details = self.get(id).get_full_details()
+    def get_all_character_details(self) -> list[str]:
+        """Returns a list of brief details for all characters on the server."""
 
-        return details
-
-    def get_character_details_by_type(self, character_type):
-        """ Returns a list of details for the given character type """
-
-        if character_type is None or (character_type != Player.CHARACTER_TYPE and character_type != Monster.CHARACTER_TYPE):
-            raise ValueError("Invalid character type")
-
-        session = self._db_session()
-
-        if character_type == Player.CHARACTER_TYPE:
-            characters = session.query(Player).filter(
-                Player.type == "player").all()
-        elif character_type == Monster.CHARACTER_TYPE:
-            characters = session.query(Monster).filter(
-                Monster.type == "monster").all()
-        else:
-            characters = []
-
-        session.close()
-
-        character_detail_list = []
-
-        for curr_character in characters:
-            character_detail_list.append(curr_character.get_details())
-
-        return character_detail_list
-
-    def get_all_character_details(self):
-        """ Returns a list of details for the all character """
-
-        session = self._db_session()
         characters = self.get_all()
-        session.close()
-
-        character_detail_list = []
-
-        for curr_character in characters:
-            character_detail_list.append(curr_character.get_details())
-
-        return character_detail_list
-
-    @staticmethod
-    def _validate_string_input(display_name, str_value):
-        """ Private helper to validate string values """
-
-        if str_value is None:
-            raise ValueError(display_name + " cannot be undefined.")
-
-        if str_value == "":
-            raise ValueError(display_name + " cannot be empty.")
-
-    @staticmethod
-    def _validate_int_id(display_name, id):
-        """ Private helper to validate integer id """
-
-        if type(id) != int:
-            raise ValueError(display_name + " needs to be integer")
+        return [char.get_details() for char in characters]
